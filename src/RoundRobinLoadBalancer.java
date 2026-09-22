@@ -4,10 +4,10 @@ import java.util.concurrent.atomic.AtomicInteger;
 
 /**
  * Dynamic Round-Robin Load Balancer.
- * Supports adding/removing backend nodes at runtime safely using CopyOnWriteArrayList.
+ * Supports safely adding or removing backend nodes at runtime using CopyOnWriteArrayList.
  */
 public class RoundRobinLoadBalancer {
-    // Thread-safe list perfect for cases where reading is frequent, but writing is rare.
+    // Thread-safe list optimized for scenarios where traversals vastly outnumber mutations
     private final List<String> activeNodes = new CopyOnWriteArrayList<>();
     private final AtomicInteger currentIndex = new AtomicInteger(0);
 
@@ -16,16 +16,23 @@ public class RoundRobinLoadBalancer {
     }
 
     /**
-     * Replaces the current list of active nodes with a new healthy list.
+     * Safely replaces the current list of active nodes with a new list of healthy nodes.
+     *
+     * @param healthyNodes The updated list of reachable backend servers.
      */
     public void updateActiveNodes(List<String> healthyNodes) {
         activeNodes.clear();
         activeNodes.addAll(healthyNodes);
     }
 
+    /**
+     * Retrieves the next available backend node using a round-robin algorithm.
+     *
+     * @return The IP/Hostname of the target node, or an error message if all nodes are down.
+     */
     public String getNextNode() {
         if (activeNodes.isEmpty()) {
-            return "ERROR: 503 Service Unavailable - All backends are down!";
+            return "ERROR: 503 Service Unavailable - All backend servers are down!";
         }
         int index = Math.abs(currentIndex.getAndIncrement()) % activeNodes.size();
         return activeNodes.get(index);

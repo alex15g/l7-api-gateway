@@ -18,17 +18,24 @@ public class ApiGateway {
     private static final int MAX_REQUESTS_PER_SECOND = 50;
     private static final int THREAD_POOL_SIZE = 100;
 
+    // We use a mix of reliable servers and a guaranteed failing one for demonstration purposes
+    private static final List<String> BACKEND_SERVERS = List.of(
+            "google.com:80",
+            "cloudflare.com:80",
+            "localhost:9999" // This server does not exist, so it will be marked as DOWN
+    );
+
     // Core components initialized (Dependency Injection pattern)
     private static final RateLimiter rateLimiter = new RateLimiter(MAX_REQUESTS_PER_SECOND);
-    private static final RoundRobinLoadBalancer loadBalancer = new RoundRobinLoadBalancer(
-            List.of("Backend-Node-1", "Backend-Node-2", "Backend-Node-3")
-    );
+    private static final RoundRobinLoadBalancer loadBalancer = new RoundRobinLoadBalancer(BACKEND_SERVERS);
+    private static final HealthChecker healthChecker = new HealthChecker(BACKEND_SERVERS, loadBalancer);
 
     // Thread pool for handling concurrent non-blocking I/O operations
     private static final ExecutorService requestHandlers = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
     public static void main(String[] args) {
         startRateLimiterScheduler();
+        healthChecker.start(); // START THE HEALTH CHECKER
         startServer();
     }
 
