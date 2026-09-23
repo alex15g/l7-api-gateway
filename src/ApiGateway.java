@@ -35,11 +35,14 @@ public class ApiGateway {
     private static final ExecutorService requestHandlers = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
     private static final ConfigWatcher configWatcher = new ConfigWatcher(rateLimiter);
+    private static ServerSocket serverSocket;
+    private static ScheduledExecutorService rateLimiterScheduler;
 
     public static void main(String[] args) {
         startRateLimiterScheduler();
         healthChecker.start();
         configWatcher.start(); // START THE HOT RELOAD DAEMON
+        registerShutdownHook();
         startServer();
     }
 
@@ -53,7 +56,11 @@ public class ApiGateway {
                 requestHandlers.execute(() -> handleClientRequest(clientSocket));
             }
         } catch (Exception e) {
-            System.err.println("[GATEWAY] Critical Server Error: " + e.getMessage());
+            if (serverSocket == null || serverSocket.isClosed()) {
+                System.out.println("[GATEWAY] Server socket closed safely.");
+            } else {
+                System.err.println("[GATEWAY] Critical Server Error: " + e.getMessage());
+            }
         }
     }
 
@@ -109,6 +116,41 @@ public class ApiGateway {
     private static void startRateLimiterScheduler() {
         ScheduledExecutorService scheduler = Executors.newScheduledThreadPool(1);
         scheduler.scheduleAtFixedRate(rateLimiter::reset, 1, 1, TimeUnit.SECONDS);
+    }
+
+    private static void registerShutdownHook() {
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            System.out.println("\n[GATEWAY] Initiating graceful shutdown...");
+
+            // 1. Close the ServerSocket to stop accepting new connections
+            try {
+                if (serverSocket != null && !serverSocket.isClosed()) {
+                    serverSocket.close();
+                }
+            } catch (Exception e) {
+                System.err.println("[GATEWAY] Error closing server socket: " + e.getMessage());
+            }
+
+            // 2. Shut down the thread pool and allow up to 5 seconds
+            //    for currently running requests to complete
+            requestHandlers.shutdown();
+            try {
+                if (!requestHandlers.awaitTermination(5, TimeUnit.SECONDS)) {
+                    System.err.println("[GATEWAY] Forcing worker thread pool termination...");
+                    requestHandlers.shutdownNow();
+                }
+            } catch (InterruptedException e) {
+                requestHandlers.shutdownNow();
+                Thread.currentThread().interrupt();
+            }
+
+            // 3. Shut down the rate limiter scheduler
+            if (rateLimiterScheduler != null) {
+                rateLimiterScheduler.shutdown();
+            }
+
+            System.out.println("[GATEWAY] Graceful shutdown complete. Resources released.");
+        }));
     }
 
     /**
