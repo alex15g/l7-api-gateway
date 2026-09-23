@@ -7,6 +7,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
+import java.util.UUID;
 
 /**
  * Main entry point for the L7 API Gateway.
@@ -58,6 +59,9 @@ public class ApiGateway {
 
     private static void handleClientRequest(Socket clientSocket) {
         String clientIp = clientSocket.getInetAddress().getHostAddress();
+        // Generăm un ID unic global pentru acest request (Distributed Tracing)
+        String correlationId = UUID.randomUUID().toString();
+        long startTime = System.currentTimeMillis();
 
         try (clientSocket;
              InputStream input = clientSocket.getInputStream();
@@ -65,7 +69,7 @@ public class ApiGateway {
 
             // 1. Security Check: Rate Limiting
             if (!rateLimiter.isAllowed(clientIp)) {
-                System.out.println("[SECURITY] Rate limit exceeded for IP: " + clientIp);
+                System.out.printf("[%s] [SECURITY] Rate limit exceeded for IP: %s%n", correlationId, clientIp);
                 sendHttpResponse(output, 429, "Too Many Requests", "Rate limit exceeded. Try again later.");
                 return;
             }
@@ -77,14 +81,25 @@ public class ApiGateway {
 
             // 2. Routing: Load Balancing
             String targetNode = loadBalancer.getNextNode();
-            System.out.println("[ROUTER] Traffic from " + clientIp + " forwarded to -> " + targetNode);
 
-            // 3. Mock Downstream Response (In a real proxy, we would forward the TCP packet here)
-            String jsonResponse = "{\n  \"status\": \"success\",\n  \"routedTo\": \"" + targetNode + "\"\n}";
+            // Calculăm cât timp a durat procesarea în interiorul Gateway-ului
+            long processingTimeMs = System.currentTimeMillis() - startTime;
+
+            // Audit Log profesionist cu Correlation ID și Processing Time
+            System.out.printf("[%s] [ROUTER] %s -> %s (Processed in %dms)%n",
+                    correlationId, clientIp, targetNode, processingTimeMs);
+
+            // 3. Mock Downstream Response (Injectăm Correlation ID-ul ca să-l vadă și clientul)
+            String jsonResponse = "{\n" +
+                    "  \"status\": \"success\",\n" +
+                    "  \"routedTo\": \"" + targetNode + "\",\n" +
+                    "  \"correlationId\": \"" + correlationId + "\"\n" +
+                    "}";
+
             sendHttpResponse(output, 200, "OK", jsonResponse);
 
         } catch (Exception e) {
-            System.err.println("[ROUTER] Connection handling error: " + e.getMessage());
+            System.err.printf("[%s] [ERROR] Connection handling error: %s%n", correlationId, e.getMessage());
         }
     }
 
