@@ -33,9 +33,12 @@ public class ApiGateway {
     // Thread pool for handling concurrent non-blocking I/O operations
     private static final ExecutorService requestHandlers = Executors.newFixedThreadPool(THREAD_POOL_SIZE);
 
+    private static final ConfigWatcher configWatcher = new ConfigWatcher(rateLimiter);
+
     public static void main(String[] args) {
         startRateLimiterScheduler();
-        healthChecker.start(); // START THE HEALTH CHECKER
+        healthChecker.start();
+        configWatcher.start(); // START THE HOT RELOAD DAEMON
         startServer();
     }
 

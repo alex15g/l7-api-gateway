@@ -7,13 +7,20 @@ import java.util.concurrent.atomic.AtomicInteger;
  * Ensures thread-safe operation across multiple concurrent client requests.
  */
 public class RateLimiter {
-    private final int maxRequestsPerSecond;
-
-    // Tracks the number of requests per IP address safely across multiple threads
+    // 'volatile' ensures that thread caches are bypassed and the updated value is seen immediately by all worker threads
+    private volatile int maxRequestsPerSecond;
     private final Map<String, AtomicInteger> clientRequestCounts = new ConcurrentHashMap<>();
 
-    public RateLimiter(int maxRequestsPerSecond) {
-        this.maxRequestsPerSecond = maxRequestsPerSecond;
+    public RateLimiter(int initialLimit) {
+        this.maxRequestsPerSecond = initialLimit;
+    }
+
+    /**
+     * Updates the rate limit dynamically at runtime without restarting the server.
+     */
+    public void setMaxRequestsPerSecond(int newLimit) {
+        this.maxRequestsPerSecond = newLimit;
+        System.out.println("[CONFIG] Rate limit dynamically updated to: " + newLimit + " req/sec");
     }
 
     /**
