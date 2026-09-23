@@ -12,10 +12,14 @@ A lightweight, multi-threaded Layer 7 API Gateway built entirely from scratch in
 * **Observability:** Engineered distributed tracing capabilities by injecting `X-Correlation-ID` (UUID) into incoming requests, generating structured audit logs with precise processing latency tracking.
 * **High Performance:** Stress-tested with `autocannon` to handle **3,700+ requests/second** natively on Windows using Java's standard network stack and optimized TCP connection backlogs.
 
+* * **Graceful Shutdown:** Implements a custom JVM Shutdown Hook (`Runtime.addShutdownHook`) to safely drain active connections, stop worker pools, and release system ports without abrupt termination.
+* **Containerization:** Fully containerized using a lightweight Alpine JRE 17 `Dockerfile` for seamless cloud deployment.
+
 ## Tech Stack
 * **Language:** Java 17+ (Core APIs: `java.net`, `java.util.concurrent`)
 * **Testing:** JUnit 5 for business logic validation.
 * **Architecture:** Single Responsibility Principle (SRP), Dependency Injection pattern, Thread-safe Data Structures (`CopyOnWriteArrayList`).
+* **DevOps:** Docker (Alpine JRE)
 
 ## How to Run
 
@@ -25,6 +29,13 @@ A lightweight, multi-threaded Layer 7 API Gateway built entirely from scratch in
 4. Send requests via browser or `curl`.
 5. **Test Hot Reloading:** Modify `gateway.properties` while the server is running and watch the rate limit adjust dynamically in the console.
 
+## How to Run (via Docker)
+
+1. Build the Docker image:
+   docker build -t l7-api-gateway .
+2. Run the container:
+   docker run -p 8080:8080 l7-api-gateway
+   
 ## 📸 Project Demo & Logs
 
 **Structured Audit Logging & Health Checks (Console Output)**  
