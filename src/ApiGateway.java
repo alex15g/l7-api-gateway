@@ -44,7 +44,7 @@ public class ApiGateway {
     }
 
     private static void startServer() {
-        try (ServerSocket serverSocket = new ServerSocket(GATEWAY_PORT)) {
+        try (ServerSocket serverSocket = new ServerSocket(GATEWAY_PORT, 10000)) {
             System.out.println("[GATEWAY] Started on port " + GATEWAY_PORT + ". Awaiting connections...");
 
             while (true) {
@@ -69,7 +69,7 @@ public class ApiGateway {
 
             // 1. Security Check: Rate Limiting
             if (!rateLimiter.isAllowed(clientIp)) {
-                System.out.printf("[%s] [SECURITY] Rate limit exceeded for IP: %s%n", correlationId, clientIp);
+                //System.out.printf("[%s] [SECURITY] Rate limit exceeded for IP: %s%n", correlationId, clientIp);
                 sendHttpResponse(output, 429, "Too Many Requests", "Rate limit exceeded. Try again later.");
                 return;
             }
@@ -86,8 +86,8 @@ public class ApiGateway {
             long processingTimeMs = System.currentTimeMillis() - startTime;
 
             // Audit Log profesionist cu Correlation ID și Processing Time
-            System.out.printf("[%s] [ROUTER] %s -> %s (Processed in %dms)%n",
-                    correlationId, clientIp, targetNode, processingTimeMs);
+            //System.out.printf("[%s] [ROUTER] %s -> %s (Processed in %dms)%n",
+            //        correlationId, clientIp, targetNode, processingTimeMs);
 
             // 3. Mock Downstream Response (Injectăm Correlation ID-ul ca să-l vadă și clientul)
             String jsonResponse = "{\n" +
@@ -115,11 +115,15 @@ public class ApiGateway {
      * Constructs and sends a raw HTTP response back to the client.
      */
     private static void sendHttpResponse(OutputStream output, int statusCode, String statusText, String body) throws Exception {
+        byte[] bodyBytes = body.getBytes(); // the real dimenson in bytes
+
         String response = "HTTP/1.1 " + statusCode + " " + statusText + "\r\n" +
                 "Content-Type: application/json\r\n" +
+                "Content-Length: " + bodyBytes.length + "\r\n" +
                 "Connection: close\r\n" +
                 "\r\n" +
                 body;
+
         output.write(response.getBytes());
         output.flush();
     }
