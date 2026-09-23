@@ -1,6 +1,6 @@
 # L7 API Gateway & Load Balancer
 
-A lightweight, multi-threaded Layer 7 API Gateway built entirely from scratch in Java. This project demonstrates core distributed systems concepts, including non-blocking network I/O, concurrent memory management, fault tolerance, and traffic routing, without relying on heavy enterprise frameworks.
+A lightweight, multi-threaded Layer 7 API Gateway built entirely from scratch in Java. This project demonstrates core distributed systems concepts, including blocking network I/O, concurrent memory management, fault tolerance, and traffic routing, without relying on heavy enterprise frameworks.
 
 ## Core Architecture & Features
 
